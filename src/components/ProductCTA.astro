@@ -1,0 +1,26 @@
+---
+import { PRODUCT } from '../site.config';
+
+interface Props {
+  text?: string;
+  url?: string;
+  tagline?: string;
+  variant?: 'inline' | 'final';
+}
+
+const {
+  text = PRODUCT.ctaText,
+  url = PRODUCT.url,
+  tagline = PRODUCT.tagline,
+  variant = 'inline',
+} = Astro.props;
+---
+
+<aside class={`cta cta--${variant}`} aria-label={`About ${PRODUCT.name}`}>
+  <div>
+    <p class="cta__eyebrow">{variant === 'final' ? 'Ready to try it?' : 'Our pick'}</p>
+    <p class="cta__name">{PRODUCT.name}</p>
+    <p class="cta__tagline">{tagline}</p>
+  </div>
+  <a class="cta__button" href={url} rel="noopener">{text} →</a>
+</aside>

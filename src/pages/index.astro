@@ -1,0 +1,42 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { SITE } from '../site.config';
+import { formatDate } from '../lib/format';
+
+const posts = (await getCollection('listicles', ({ data }) => !data.draft)).sort(
+  (a, b) =>
+    (b.data.updatedDate ?? b.data.publishDate).valueOf() - (a.data.updatedDate ?? a.data.publishDate).valueOf(),
+);
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE.name,
+  url: SITE.url,
+  description: SITE.description,
+};
+---
+
+<Base title={SITE.name} description={SITE.description} jsonLd={jsonLd}>
+  <section class="hero">
+    <h1>{SITE.name}</h1>
+    <p>{SITE.description}</p>
+  </section>
+
+  <ul class="post-list">
+    {posts.map((post) => (
+      <li>
+        <a href={`/${post.id}/`}>
+          <h2>{post.data.title}</h2>
+          <p>{post.data.description}</p>
+          <time datetime={(post.data.updatedDate ?? post.data.publishDate).toISOString()}>
+            {formatDate(post.data.updatedDate ?? post.data.publishDate, SITE.lang)}
+          </time>
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  {posts.length === 0 && <p class="empty">No listicles published yet.</p>}
+</Base>

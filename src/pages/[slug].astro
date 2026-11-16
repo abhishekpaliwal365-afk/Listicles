@@ -1,0 +1,97 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import ProductCTA from '../components/ProductCTA.astro';
+import { SITE } from '../site.config';
+import { formatDate, readingMinutes, cleanItemName, isNumberedItem } from '../lib/format';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('listicles', ({ data }) => !data.draft);
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { data } = post;
+const { Content, headings } = await render(post);
+
+// List items are the numbered H2 headings ("## 1. Name"); other H2s like "The bottom line" are skipped.
+const items = headings.filter((h) => h.depth === 2 && isNumberedItem(h.text));
+const pageUrl = new URL(`/${post.id}/`, Astro.site).toString();
+const author = data.author ?? SITE.author;
+const minutes = readingMinutes(post.body);
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: data.title,
+    description: data.description,
+    datePublished: data.publishDate.toISOString(),
+    dateModified: (data.updatedDate ?? data.publishDate).toISOString(),
+    author: { '@type': 'Organization', name: author },
+    publisher: { '@type': 'Organization', name: SITE.name },
+    mainEntityOfPage: pageUrl,
+    ...(data.heroImage ? { image: new URL(data.heroImage, Astro.site).toString() } : {}),
+  },
+  ...(items.length
+    ? [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: data.title,
+          numberOfItems: items.length,
+          itemListElement: items.map((h, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: cleanItemName(h.text),
+            url: `${pageUrl}#${h.slug}`,
+          })),
+        },
+      ]
+    : []),
+];
+---
+
+<Base title={data.title} description={data.description} image={data.heroImage} type="article" jsonLd={jsonLd}>
+  <article class="article">
+    <header class="article__header">
+      {data.tags.length > 0 && <p class="article__tags">{data.tags.join(' · ')}</p>}
+      <h1>{data.title}</h1>
+      <p class="article__dek">{data.description}</p>
+      <p class="article__meta">
+        <span>By {author}</span>
+        <span>
+          {data.updatedDate ? (
+            <>Updated <time datetime={data.updatedDate.toISOString()}>{formatDate(data.updatedDate, SITE.lang)}</time></>
+          ) : (
+            <time datetime={data.publishDate.toISOString()}>{formatDate(data.publishDate, SITE.lang)}</time>
+          )}
+        </span>
+        <span>{minutes} min read</span>
+      </p>
+    </header>
+
+    {data.heroImage && (
+      <img class="article__hero" src={data.heroImage} alt={data.heroAlt ?? ''} loading="eager" decoding="async" />
+    )}
+
+    {items.length > 2 && (
+      <nav class="toc" aria-label="In this list">
+        <p class="toc__title">In this list</p>
+        <ol>
+          {items.map((h) => (
+            <li><a href={`#${h.slug}`}>{cleanItemName(h.text)}</a></li>
+          ))}
+        </ol>
+      </nav>
+    )}
+
+    <ProductCTA text={data.cta?.text} url={data.cta?.url} tagline={data.cta?.tagline} />
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    <ProductCTA variant="final" text={data.cta?.text} url={data.cta?.url} tagline={data.cta?.tagline} />
+  </article>
+</Base>
